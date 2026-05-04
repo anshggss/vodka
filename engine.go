@@ -25,7 +25,7 @@ func (e *Engine) Run(addr string) error {
 		addr = ":8080"
 	}
 
-	log.Printf("Listening and serving HTTP on %s\n", addr)
+	log.Printf("Pouring Vodka on %s\n", addr)
 
 	// Using net/http
 	return http.ListenAndServe(addr, e.router)
