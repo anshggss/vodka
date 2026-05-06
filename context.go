@@ -28,7 +28,7 @@ type Context struct {
 // Abort http request
 func (c *Context) Abort() {
 	c.index = abortIndex
-	c.isAborted = true
+	c.isAborted = true // Aborted
 }
 
 // Step By Step execution of middlewares
