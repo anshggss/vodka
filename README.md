@@ -236,27 +236,49 @@ c.Error(400, errors.New("invalid request"))
 
 # Middleware
 
-Vodka uses a middleware chain architecture similar to modern backend frameworks.
+Vodka middleware is just a `vodka.HandlerFunc`, which means it is a function with the signature:
+
+```go
+func(*vodka.Context)
+```
+
+That makes middleware a regular request handler that can run before and after the route handler.
 
 Middlewares can:
 
 - Modify requests
 - Attach values to context
-- Handle authentication
+- Authenticate users
 - Log requests
 - Recover from panics
-- Intercept errors
+- Handle errors
+
+Middlewares are registered with `app.Use(...)` or on a router group with `group.Use(...)`.
+
+### How middleware works
+
+Each incoming request is wrapped in a `*vodka.Context` and the framework builds a handler chain:
+
+- all group middlewares
+- the final route handler
+
+`c.Next()` tells Vodka to continue to the next middleware or to the route handler. If you omit `c.Next()`, the chain stops there, which is useful when you want to short-circuit the request (for example, when authentication fails).
+
+### Why use `c.Next()`
+
+Use `c.Next()` inside your middleware when you want the request to continue down the chain. This lets you:
+
+- run code before the next handler
+- allow the next handler to execute
+- run code after the next handler finishes
+
+A middleware that calls `c.Next()` can also inspect or modify the response after the rest of the chain has executed.
+
+If a middleware wants to stop the chain immediately, it can simply avoid calling `c.Next()` and optionally call `c.Abort()`.
 
 ---
 
-## Custom Middleware Example
-
-```go
-func Logger() vodka.HandlerFunc {
-	return func(c *vodka.Context) {
-		start := time.Now()
-
-		c.Next()
+# Validation
 
 		latency := time.Since(start)
 
