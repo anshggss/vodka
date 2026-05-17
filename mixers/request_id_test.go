@@ -22,6 +22,11 @@ func TestRequestID(t *testing.T) {
 			t.Error("request-id is empty")
 		}
 
+		reqHeaderID := c.Request.Header.Get("X-Request-ID")
+		if reqHeaderID != requestID {
+			t.Errorf("request header ID (%s) doesn't match context ID (%s)", reqHeaderID, requestID)
+		}
+
 		c.JSON(200, vodka.M{"request_id": requestID})
 	})
 
@@ -49,6 +54,12 @@ func TestRequestIDWithCustomHeader(t *testing.T) {
 
 	app.GET("/test", func(c *vodka.Context) {
 		requestID, _ := c.Get("request-id")
+		
+		reqHeaderID := c.Request.Header.Get(customHeaderName)
+		if reqHeaderID != requestID {
+			t.Errorf("request header ID (%s) doesn't match context ID (%s)", reqHeaderID, requestID)
+		}
+		
 		c.JSON(200, vodka.M{"request_id": requestID})
 	})
 

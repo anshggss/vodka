@@ -43,6 +43,7 @@ func RequestIDWithHeader(headerName string) vodka.HandlerFunc {
 		// If not present, generate a new one
 		if requestID == "" {
 			requestID = generateUUID()
+			c.Request.Header.Set(headerName, requestID)
 		}
 
 		// Store in context for access by handlers
