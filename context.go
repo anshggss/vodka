@@ -294,3 +294,36 @@ func (c *Context) ParamBool(key string) (bool, error) {
 	}
 	return val, nil
 }
+
+// SetCookie writes a cookie to the response.
+// maxAge is in seconds. Use 0 for session cookie, negative to delete.
+func (c *Context) SetCookie(name, value string, maxAge int) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     name,
+		Value:    value,
+		MaxAge:   maxAge,
+		Path:     "/",
+		HttpOnly: true,
+	})
+}
+
+// Cookie returns the value of the named cookie from the request.
+// Returns an error if the cookie is not found.
+func (c *Context) Cookie(name string) (string, error) {
+	cookie, err := c.Request.Cookie(name)
+	if err != nil {
+		return "", err
+	}
+	return cookie.Value, nil
+}
+
+// ClearCookie deletes a cookie by setting its MaxAge to -1.
+func (c *Context) ClearCookie(name string) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     name,
+		Value:    "",
+		MaxAge:   -1,
+		Path:     "/",
+		HttpOnly: true,
+	})
+}
