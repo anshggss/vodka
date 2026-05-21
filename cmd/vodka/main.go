@@ -119,6 +119,14 @@ func createProject(name string) {
 	runCmd(name, "go", "mod", "init", name)
 	runCmd(name, "go", "get", "github.com/DevanshuTripathi/vodka@latest")
 
+	corsURL := ""
+
+	switch choice {
+	case 1:
+		corsURL = "http://localhost:5173"
+	case 2:
+		corsURL = "http://localhost:3000"
+	}
 	mainGoContent := `package main
 
 import (
@@ -129,10 +137,7 @@ import (
 func main() {
 	app := vodka.DefaultRouter() // Creates a Default Router with Logger and Recovery Middleware
 
-	allowedOrigins := []string{
-	"http://localhost:5173", // Vite
-	"http://localhost:3000", // NextJS
-}
+	allowedOrigins := []string{"` + corsURL + `"}
 
 	app.Use(vodka.AllowCORS(allowedOrigins))
 
@@ -234,7 +239,7 @@ func Hello(c *vodka.Context) {
 		fmt.Printf(
 			Cyan+"Next steps:\n"+Reset+
 				"  "+Green+"cd %s\n"+Reset+
-				"  "+Green+"go run .\n"+Reset,
+				"  "+Green+"vodka\n"+Reset,
 			name,
 		)
 	}
