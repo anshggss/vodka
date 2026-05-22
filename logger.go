@@ -16,22 +16,12 @@ func (rw *responseWriter) WriteHeader(code int) {
 	rw.ResponseWriter.WriteHeader(code)
 }
 
-func (rw *responseWriter) Write(b []byte) (int, error) {
-	if rw.status == 0 {
-		rw.status = http.StatusOK
-	}
-	return rw.ResponseWriter.Write(b)
-}
-
 func Logger() HandlerFunc {
 	return func(c *Context) {
 		start := time.Now()
-		rw := &responseWriter{ResponseWriter: c.Writer}
+		rw := &responseWriter{ResponseWriter: c.Writer, status: http.StatusOK}
 		c.Writer = rw
 		c.Next()
-		if rw.status == 0 {
-			rw.status = http.StatusOK
-		}
 		log.Printf(
 			Blue+"%s %s %d %s"+Reset,
 			c.Request.Method,
