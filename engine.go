@@ -163,6 +163,21 @@ func (rg *RouterGroup) addRoute(method string, comp string, handler HandlerFunc)
 
 	rg.engine.router.Handle(method, absolutePath, func(w http.ResponseWriter, r *http.Request, params httprouter.Params) {
 
+		if len(handlers) == 1 {
+			c := contextPool.Get().(*Context)
+
+			c.Writer = w
+			c.Request = r
+			c.Params = params
+			c.engine = rg.engine
+
+			handlers[0](c)
+
+			c.Reset()
+			contextPool.Put(c)
+			return
+		}
+
 		c := contextPool.Get().(*Context)
 		c.Initialize(w, r, params, handlers, rg.engine)
 
