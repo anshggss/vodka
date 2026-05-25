@@ -11,7 +11,7 @@ func Recovery() HandlerFunc {
 			if err := recover(); err != nil {
 				log.Printf(Red+"[Vodka Panic Recovery] %v\n"+Reset, err)
 				c.Abort()
-				if rw, ok := c.Writer.(*responseWriter); ok && rw.status != 0 {
+				if rw, ok := c.Writer.(*responseWriter); ok && rw.wroteHeader {
 					return
 				}
 				c.JSON(http.StatusInternalServerError, M{
