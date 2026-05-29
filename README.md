@@ -151,6 +151,19 @@ Add the following directory to Environment Variables:
 vodka create my-app
 ```
 
+An optional destination directory can be provided as a second argument. If omitted, the project is created in the current directory.
+
+```bash
+# Create in current directory
+vodka create my-app
+
+# Create inside an existing directory
+vodka create my-app ./projects
+
+# Create relative to parent
+vodka create my-app ../someProj
+```
+
 This generates:
 
 - A Go backend powered by Vodka
