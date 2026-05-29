@@ -52,17 +52,44 @@ func main() {
 	switch os.Args[1] {
 	case "create":
 		if len(os.Args) < 3 {
-			fmt.Println(Red + "Usage: vodka create <project-name> [--minimal]" + Reset)
+			fmt.Println(Red + "Usage: vodka create <project-name> [location] [--minimal]" + Reset)
 			return
 		}
 
+		appName := os.Args[2]
+		location := ""
 		minimal := false
 
-		if len(os.Args) >= 4 && os.Args[3] == "--minimal" {
-			minimal = true
+		for i := 3; i < len(os.Args); i++ {
+			arg := os.Args[i]
+			switch {
+			case arg == "--minimal":
+				minimal = true
+			case arg == "-l" || arg == "--location":
+				if i+1 >= len(os.Args) || os.Args[i+1] == "--minimal" {
+					fmt.Println(Red + "Error: Specify target package location" + Reset)
+					return
+				}
+				location = os.Args[i+1]
+				i++
+			case !strings.HasPrefix(arg, "-"):
+				location = arg
+			}
 		}
 
-		createProject(os.Args[2], minimal)
+		var projectPath string
+		if location == "" || location == "." {
+			projectPath = appName
+		} else {
+			absPath, err := filepath.Abs(location)
+			if err != nil {
+				fmt.Println(Red + "Error: Invalid file path specified" + Reset)
+				return
+			}
+			projectPath = absPath
+		}
+
+		createProject(projectPath, appName, minimal)
 
 	case "run":
 		if len(os.Args) >= 3 && os.Args[2] == "dev" {
@@ -75,7 +102,7 @@ func main() {
 
 	default:
 		fmt.Printf(Red+"Unknown command '%s'.\n"+Reset, os.Args[1])
-		fmt.Println(Cyan + "Available commands:" + Reset + "\n  " + Green + "vodka" + Reset + "\n  " + Green + "vodka create <name>" + Reset + "\n  " + Green + "vodka run dev" + Reset)
+		fmt.Println(Cyan + "Available commands:" + Reset + "\n  " + Green + "vodka" + Reset + "\n  " + Green + "vodka create <name> [location] [--minimal]" + Reset + "\n  " + Green + "vodka run dev" + Reset)
 	}
 }
 
@@ -110,9 +137,12 @@ func runDev() {
 	watchBackend()
 }
 
-func createProject(name string, minimal bool) {
+func createProject(path string, name string, minimal bool) {
 	var result string
 
+	if path == "" {
+		path = name
+	}
 	if !minimal {
 		prompt := promptui.Select{
 			Label: "Choose project type",
@@ -165,11 +195,11 @@ func createProject(name string, minimal bool) {
 	}
 	fmt.Printf(Cyan+"Distilling your project: %s...\n"+Reset, name)
 
-	os.Mkdir(name, 0755)
+	os.MkdirAll(path, 0755)
 
 	fmt.Println(Gray + "Initializing Go backend..." + Reset)
-	runCmd(name, "go", "mod", "init", name)
-	runCmd(name, "go", "get", "github.com/DevanshuTripathi/vodka@latest")
+	runCmd(path, "go", "mod", "init", name)
+	runCmd(path, "go", "get", "github.com/DevanshuTripathi/vodka@latest")
 
 	corsURL := ""
 
@@ -246,14 +276,14 @@ func Hello(c *vodka.Context) {
 	c.String(200, "Hello "+ name +"!")
 }
 `
-	os.WriteFile(filepath.Join(name, "main.go"), []byte(mainGoContent), 0644)
+	os.WriteFile(filepath.Join(path, "main.go"), []byte(mainGoContent), 0644)
 
 	if !minimal {
-		os.MkdirAll(filepath.Join(name, "controllers"), 0755)
-		os.MkdirAll(filepath.Join(name, "routes"), 0755)
+		os.MkdirAll(filepath.Join(path, "controllers"), 0755)
+		os.MkdirAll(filepath.Join(path, "routes"), 0755)
 
-		os.WriteFile(filepath.Join(name, "controllers", "ping.go"), []byte(controllersContent), 0644)
-		os.WriteFile(filepath.Join(name, "routes", "routes.go"), []byte(routesContent), 0644)
+		os.WriteFile(filepath.Join(path, "controllers", "ping.go"), []byte(controllersContent), 0644)
+		os.WriteFile(filepath.Join(path, "routes", "routes.go"), []byte(routesContent), 0644)
 	}
 
 	switch choice {
@@ -281,10 +311,10 @@ func Hello(c *vodka.Context) {
 		fmt.Println(Gray + "Spinning up React frontend with Vite..." + Reset)
 
 		if runtime.GOOS == "windows" {
-			runCmd(name, "cmd", "/C",
+			runCmd(path, "cmd", "/C",
 				"npm create vite@latest frontend -- --template "+template)
 		} else {
-			runCmd(name, "npm", "create", "vite@latest",
+			runCmd(path, "npm", "create", "vite@latest",
 				"frontend", "--", "--template", template)
 		}
 
@@ -292,9 +322,9 @@ func Hello(c *vodka.Context) {
 		fmt.Println(Gray + "Creating NextJS project..." + Reset)
 
 		if runtime.GOOS == "windows" {
-			runCmd(name, "cmd", "/C", "npx create-next-app@latest frontend --yes")
+			runCmd(path, "cmd", "/C", "npx create-next-app@latest frontend --yes")
 		} else {
-			runCmd(name, "npx", "create-next-app@latest", "frontend", "--yes")
+			runCmd(path, "npx", "create-next-app@latest", "frontend", "--yes")
 		}
 
 	case 3:
@@ -309,9 +339,9 @@ func Hello(c *vodka.Context) {
 		fmt.Println(Red + "Invalid choice! Defaulting to Vite + React." + Reset)
 
 		if runtime.GOOS == "windows" {
-			runCmd(name, "cmd", "/C", "npm create vite@latest frontend -- --template react")
+			runCmd(path, "cmd", "/C", "npm create vite@latest frontend -- --template react")
 		} else {
-			runCmd(name, "npm", "create", "vite@latest", "frontend", "--", "--template", "react")
+			runCmd(path, "npm", "create", "vite@latest", "frontend", "--", "--template", "react")
 		}
 	}
 	fmt.Printf(Green+"\nProject %s is ready!\n"+Reset, name)
@@ -324,7 +354,7 @@ func Hello(c *vodka.Context) {
 				"  "+Green+"cd frontend && npm install\n"+Reset+
 				"  "+Green+"cd ..\n"+Reset+
 				"  "+Green+"vodka run dev\n"+Reset,
-			name,
+			path,
 		)
 
 	case 2:
@@ -332,7 +362,7 @@ func Hello(c *vodka.Context) {
 			Cyan+"Next steps:\n"+Reset+
 				"  "+Green+"cd %s\n"+Reset+
 				"  "+Green+"vodka run dev\n"+Reset,
-			name,
+			path,
 		)
 
 	case 3:
@@ -340,7 +370,7 @@ func Hello(c *vodka.Context) {
 			Cyan+"Next steps:\n"+Reset+
 				"  "+Green+"cd %s\n"+Reset+
 				"  "+Green+"vodka\n"+Reset,
-			name,
+			path,
 		)
 	}
 }
