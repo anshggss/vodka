@@ -22,11 +22,11 @@ type visitor struct {
 }
 
 type VodkaRateLimiter struct {
-	visitors map[string]*visitor
-	mu       sync.Mutex
-	rate     float64
-	burst    int
-	stop     chan struct{}
+	visitors    map[string]*visitor
+	mu          sync.Mutex
+	rate        float64
+	burst       int
+	lastCleanup time.Time
 }
 
 func newLimiter(r float64, b int) *limiter {
@@ -62,45 +62,26 @@ func (l *limiter) allow() bool {
 }
 
 func NewRateLimiter(r float64, b int) *VodkaRateLimiter {
-	vrl := &VodkaRateLimiter{
-		visitors: make(map[string]*visitor),
-		rate:     r,
-		burst:    b,
-		stop:     make(chan struct{}),
-	}
-
-	go vrl.cleanup()
-	return vrl
-}
-
-// Stop shuts down the background cleanup goroutine. Call this when the rate
-// limiter is no longer needed to avoid a goroutine leak.
-func (vrl *VodkaRateLimiter) Stop() {
-	close(vrl.stop)
-}
-
-func (vrl *VodkaRateLimiter) cleanup() {
-	ticker := time.NewTicker(time.Minute)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-vrl.stop:
-			return
-		case <-ticker.C:
-			vrl.mu.Lock()
-			for ip, v := range vrl.visitors {
-				if time.Since(v.lastSeen) > 5*time.Minute {
-					delete(vrl.visitors, ip)
-				}
-			}
-			vrl.mu.Unlock()
-		}
+	return &VodkaRateLimiter{
+		visitors:    make(map[string]*visitor),
+		rate:        r,
+		burst:       b,
+		lastCleanup: time.Now(),
 	}
 }
 
 func (vrl *VodkaRateLimiter) getVisitor(ip string) *limiter {
 	vrl.mu.Lock()
 	defer vrl.mu.Unlock()
+
+	if time.Since(vrl.lastCleanup) > time.Minute {
+		for addr, v := range vrl.visitors {
+			if time.Since(v.lastSeen) > 5*time.Minute {
+				delete(vrl.visitors, addr)
+			}
+		}
+		vrl.lastCleanup = time.Now()
+	}
 
 	v, exists := vrl.visitors[ip]
 	if !exists {
